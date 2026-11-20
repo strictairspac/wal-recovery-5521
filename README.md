@@ -2,7 +2,10 @@
 海砾计量数据保障组（8人）用可重放日志替代恢复演练时手工拼接的SQL片段和账本截图。
 
 ## 场景与模块
-上游为事务日志样例，下游为值班复核人。原流程人工标记提交、表格算恢复余额、截图写结论；痛点是崩溃点不清、撤销顺序容易错、恢复证据缺失。模块为事务日志集 / 故障注入点 / 恢复队列 / 恢复证据，实体LogSet/CrashCase/Recovery贯穿全栈。
+上游为事务日志样例，下游为值班复核人。原流程人工标记提交、表格算恢复余额、截图写结论；痛点是崩溃点不清、撤销顺序容易错、恢复证据缺失。模块为事务日志集 / 故障注入点 / 恢复队列 / 恢复证据 / 交班短日志，实体LogSet/CrashCase/Recovery/HandoverDrill贯穿全栈。
+
+## 交班复测短日志
+值班交班时勾选同一日志集的若干原断电点，系统按**整段事务**取舍生成条目最少的短日志：未提交/abort事务整段丢弃，检查点只决定重做起点也丢弃，已提交事务仅在其写入承担某个选点必需读数（相对初始账本或前一不同值写入有实际变化）时整段保留，同值覆写不保留。保留条目维持原LSN顺序，并生成位置对照（原LSN→短日志序号、原断电点→短日志复测点）。短日志在换算后的复测点上用同一WAL模型恢复，与原账逐点比对：全部相同才发放短日志与位置对照（含导出），任一读数不一致即整单退回、不发放，原账仍可在恢复队列完整查看。同一申请（同日志集+同断电点集合）重试直接复用既有记录、不重复生成；更换断电点则重新计算并生成新记录。
 
 **Python WAL教学模型，不注入真实PostgreSQL故障，不执行数据库物理恢复。** PostgreSQL真实保存业务输入、冻结快照、任务和结果，Redis实际用于worker互斥，后台Python实际演算恢复历史。
 
@@ -34,7 +37,7 @@ crash_after=N表示前N条日志已持久化。最近静止检查点保存全部
 ## 工程与开发
 前端原生HTML/CSS/JS+Nginx1.27；后端Python3.11+FastAPI+SQLAlchemy+PyJWT；PostgreSQL16和Redis7；5服务均healthcheck。持久任务队列在PG，单worker通过Redis锁互斥。20条待执行配额，审计记录写入操作，JWT8小时、PBKDF2随机盐密码。后端路由不含/api，Nginx/api/去前缀代理。
 
-目录frontend/src/{api,stores,types,components/common,hooks,pages,router,utils,constants}与backend/src/{routes,controllers,services,models,schemas,middlewares,utils,constants,config}。本地开发安装backend/requirements.txt并设DATABASE_URL/REDIS_URL/JWT_SECRET，再运行uvicorn src.main:app；前端需代理/api。migrations记录初始化结构，暂无在线升级器。
+目录frontend/src/{api,stores,types,components/common,hooks,pages,router,utils,constants}与backend/src/{routes,controllers,services,models,schemas,middlewares,utils,constants,config}。本地开发安装backend/requirements.txt并设DATABASE_URL/REDIS_URL/JWT_SECRET，再运行uvicorn src.main:app；前端需代理/api。纯逻辑测试见backend/tests/test_short_log.py与test_short_log_property.py（python -m tests.test_short_log[_property]）。migrations记录初始化结构，暂无在线升级器。
 
 环境COMPOSE_PROJECT_NAME控制命名，FRONTEND_PORT/BACKEND_PORT/DB_PORT为18246/19246/17746，DB_PASSWORD控制演示数据库密码，JWT_SECRET签名密钥，SEED_DEMO控制种子。命名卷db-data/redis-data/artifacts；共享artifacts预留，导出由冻结快照即时生成。Google Fonts需外网，业务离线可运行。默认凭据仅本地演示。
 

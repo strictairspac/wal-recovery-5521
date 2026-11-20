@@ -5,3 +5,4 @@ export async function api(path, options={}) {
  return response.json();
 }
 export async function download(id){const r=await fetch('/api/recoveries/'+id+'/export',{headers:{Authorization:'Bearer '+session.token}});if(!r.ok)throw new Error('导出失败');const u=URL.createObjectURL(await r.blob());const a=document.createElement('a');a.href=u;a.download='recovery-'+id+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);}
+export async function downloadHandover(id){const r=await fetch('/api/handover-drills/'+id+'/export',{headers:{Authorization:'Bearer '+session.token}});if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.detail||'导出失败');}const u=URL.createObjectURL(await r.blob());const a=document.createElement('a');a.href=u;a.download='handover-drill-'+id+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);}

@@ -1,2 +1,2 @@
 # 初始化结构
-SQLAlchemy metadata.create_all首次建users、log_sets、crash_cases、recoveries、audits。log_sets.name、crash_cases.name唯一，关联使用外键，入队冻结日志和崩溃点快照。暂无在线schema升级器。
+SQLAlchemy metadata.create_all首次建users、log_sets、crash_cases、recoveries、audits、handover_drills。log_sets.name、crash_cases.name唯一，关联使用外键，入队冻结日志和崩溃点快照。handover_drills对(log_set_id,signature)建唯一约束，signature为日志集与断电点集合的SHA256，保证同一申请重试幂等、换断电点重新生成。暂无在线schema升级器。

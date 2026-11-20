@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import String, Integer, JSON, DateTime, ForeignKey
+from sqlalchemy import String, Integer, JSON, DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from src.config.database import Base
 
@@ -37,4 +37,15 @@ class Audit(Base):
     id: Mapped[int]=mapped_column(primary_key=True)
     actor: Mapped[str]=mapped_column(String(120))
     action: Mapped[str]=mapped_column(String(120))
+    created_at: Mapped[datetime]=mapped_column(DateTime,default=now)
+class HandoverDrill(Base):
+    __tablename__='handover_drills'
+    __table_args__=(UniqueConstraint('log_set_id','signature',name='uq_handover_signature'),)
+    id: Mapped[int]=mapped_column(primary_key=True)
+    log_set_id: Mapped[int]=mapped_column(ForeignKey('log_sets.id'))
+    label: Mapped[str]=mapped_column(String(120))
+    crash_points: Mapped[list]=mapped_column(JSON)
+    signature: Mapped[str]=mapped_column(String(64),index=True)
+    status: Mapped[str]=mapped_column(String(20),default='failed')
+    result: Mapped[dict]=mapped_column(JSON)
     created_at: Mapped[datetime]=mapped_column(DateTime,default=now)
